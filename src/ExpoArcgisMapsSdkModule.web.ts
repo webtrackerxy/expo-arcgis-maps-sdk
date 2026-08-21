@@ -188,6 +188,22 @@ class ExpoArcgisMapsSdkModule extends NativeModule<ExpoArcgisMapsSdkModuleEvents
     throw new ArcgisSdkError('E_UNSUPPORTED', 'Authentication is not supported on web.');
   }
 
+  async startOfflineMapJob(_options: unknown): Promise<never> {
+    throw new ArcgisSdkError('E_UNSUPPORTED', 'Offline maps are not supported on web.');
+  }
+
+  async startPreplannedMapAreaJob(_id: string, _i: number): Promise<never> {
+    throw new ArcgisSdkError('E_UNSUPPORTED', 'Offline jobs are not supported on web.');
+  }
+
+  async startScheduledUpdatesJob(_path: string): Promise<never> {
+    throw new ArcgisSdkError('E_UNSUPPORTED', 'Offline jobs are not supported on web.');
+  }
+
+  async startExportVectorTilesJob(_options: unknown): Promise<never> {
+    throw new ArcgisSdkError('E_UNSUPPORTED', 'ArcGIS maps are not supported on web.');
+  }
+
   async startGenerateGeodatabaseJob(_options: unknown): Promise<never> {
     throw new ArcgisSdkError('E_UNSUPPORTED', 'Geodatabase jobs are not supported on web.');
   }
@@ -215,6 +231,10 @@ class ExpoArcgisMapsSdkModule extends NativeModule<ExpoArcgisMapsSdkModuleEvents
 
   async cancelJob(_jobId: string): Promise<void> {
     throw new ArcgisSdkError('E_UNSUPPORTED', 'Jobs are not supported on web.');
+  }
+
+  async deleteOfflineMap(_path: string): Promise<void> {
+    throw new ArcgisSdkError('E_UNSUPPORTED', 'Offline maps are not supported on web.');
   }
 }
 

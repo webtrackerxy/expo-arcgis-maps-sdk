@@ -52,6 +52,8 @@ import { OgcCqlScreen } from './OgcCqlScreen';
 import { QueryDepthScreen } from './QueryDepthScreen';
 import { RelatedFeaturesScreen } from './RelatedFeaturesScreen';
 import { RendererScreen } from './RendererScreen';
+import { DownloadVectorTilesScreen } from './DownloadVectorTilesScreen';
+import { OfflineScreen } from './OfflineScreen';
 import { OverviewMapScreen } from './OverviewMapScreen';
 import { SpatialReferenceScreen } from './SpatialReferenceScreen';
 import { TransformationsScreen } from './TransformationsScreen';
@@ -249,6 +251,7 @@ export type ScreenKey =
   | 'creategdb'
   | 'edit'
   | 'auth'
+  | 'offline'
   | 'geodatabase'
   | 'scene'
   | 'sceneservice'
@@ -570,6 +573,8 @@ export const SCREENS: ScreenEntry[] = [
   { key: 'featureform', title: 'Edit features using feature forms', Component: FeatureFormScreen, category: 'editManage' },
   { key: 'attachments', title: 'Edit feature attachments', Component: AttachmentsScreen, category: 'editManage' },
   { key: 'updaterelated', title: 'Update related features', Component: UpdateRelatedScreen, category: 'editManage' },
+  { key: 'offline', title: 'Generate offline map', Component: OfflineScreen, category: 'editManage' },
+  { key: 'vectortiles', title: 'Download vector tiles', Component: DownloadVectorTilesScreen, category: 'editManage' },
   { key: 'geodatabase', title: 'Edit and sync features', Component: GeodatabaseScreen, category: 'editManage' },
   { key: 'searchwebmap', title: 'Search for web map', Component: SearchWebMapScreen, category: 'cloudPortal' },
   { key: 'auth', title: 'Authenticate with token', Component: AuthScreen, category: 'cloudPortal' },
