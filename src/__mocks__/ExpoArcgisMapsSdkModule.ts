@@ -160,6 +160,15 @@ export const authenticateWithPKI = jest.fn(async (_options: unknown): Promise<Po
 
 export const signOut = jest.fn(async (): Promise<void> => undefined);
 
+export const startOfflineMapJob = jest.fn(async (_options: unknown): Promise<string> => 'job-1');
+export const startPreplannedMapAreaJob = jest.fn(
+  async (_id: string, _i: number): Promise<string> => 'job-1'
+);
+
+export const startScheduledUpdatesJob = jest.fn(async (_path: string): Promise<string> => 'job-1');
+
+export const startExportVectorTilesJob = jest.fn(async (_o: unknown) => 'job-1');
+
 export const startGeoprocessingJob = jest.fn(async (_o: unknown): Promise<string> => 'job-gp');
 
 export const startGenerateGeodatabaseJob = jest.fn(
@@ -329,6 +338,10 @@ const ExpoArcgisMapsSdkModule = {
   authenticateWithIWA,
   authenticateWithPKI,
   signOut,
+  startOfflineMapJob,
+  startPreplannedMapAreaJob,
+  startScheduledUpdatesJob,
+  startExportVectorTilesJob,
   startGeoprocessingJob,
   startGenerateGeodatabaseJob,
   startSyncGeodatabaseJob,
@@ -336,6 +349,7 @@ const ExpoArcgisMapsSdkModule = {
   addFeatureWithContingentValues,
   awaitJob,
   cancelJob,
+  deleteOfflineMap,
   isArSupported,
   addListener,
 };

@@ -102,7 +102,11 @@ import com.arcgismaps.tasks.networkanalysis.RouteTask
 import com.arcgismaps.tasks.networkanalysis.ServiceAreaFacility
 import com.arcgismaps.tasks.networkanalysis.ServiceAreaTask
 import com.arcgismaps.tasks.networkanalysis.Stop
+import com.arcgismaps.tasks.exportvectortiles.ExportVectorTilesTask
 import com.arcgismaps.tasks.geodatabase.GeodatabaseSyncTask
+import com.arcgismaps.tasks.offlinemaptask.GenerateOfflineMapResult
+import com.arcgismaps.tasks.offlinemaptask.OfflineMapSyncTask
+import com.arcgismaps.tasks.offlinemaptask.OfflineMapTask
 import expo.modules.arcgismapssdk.dto.ApplyEditsOptionsRecord
 import expo.modules.arcgismapssdk.dto.CameraRecord
 import expo.modules.arcgismapssdk.dto.AddPortalItemRecord
@@ -110,6 +114,7 @@ import expo.modules.arcgismapssdk.dto.CreateAndSaveMapRecord
 import expo.modules.arcgismapssdk.dto.ContingentFeatureRecord
 import expo.modules.arcgismapssdk.dto.CreateGeodatabaseRecord
 import expo.modules.arcgismapssdk.dto.UpdateFeatureRecord
+import expo.modules.arcgismapssdk.dto.ExportVectorTilesRecord
 import expo.modules.arcgismapssdk.dto.FeatureQueryOptionsRecord
 import expo.modules.arcgismapssdk.dto.StartNavigationRecord
 import expo.modules.arcgismapssdk.dto.CreateKmlFileRecord
@@ -125,6 +130,7 @@ import expo.modules.arcgismapssdk.dto.ArcadeEvaluationOptionsRecord
 import expo.modules.arcgismapssdk.dto.IdentifyOptionsRecord
 import expo.modules.arcgismapssdk.dto.LocationDisplayRecord
 import expo.modules.arcgismapssdk.dto.MapSourceRecord
+import expo.modules.arcgismapssdk.dto.OfflineMapJobRecord
 import expo.modules.arcgismapssdk.dto.SceneSourceRecord
 import expo.modules.arcgismapssdk.dto.ServiceVersionRecord
 import expo.modules.arcgismapssdk.dto.TraceUtilityNetworkRecord
@@ -472,6 +478,17 @@ private fun jobStatusString(status: JobStatus): String =
     is JobStatus.Failed -> "failed"
     is JobStatus.Canceling -> "canceling"
   }
+
+/** Serializable `{ path, layerErrors }` for a generated offline map. */
+private fun offlineResultPayload(
+  result: GenerateOfflineMapResult,
+  path: String,
+): Map<String, Any?> {
+  val errors = mutableListOf<String>()
+  result.layerErrors.forEach { (_, error) -> errors.add(error.message ?: "layer error") }
+  result.tableErrors.forEach { (_, error) -> errors.add(error.message ?: "table error") }
+  return mapOf("path" to path, "layerErrors" to errors)
+}
 
 /**
  * Phase 2 native surface for the ArcGIS Maps SDK for Kotlin.
@@ -1733,6 +1750,131 @@ class ExpoArcgisMapsSdkModule : Module() {
         ArcGISEnvironment.authenticationManager.arcGISCredentialStore.removeAll()
       }
 
+    AsyncFunction("startOfflineMapJob") Coroutine
+      { options: OfflineMapJobRecord ->
+        val cacheDir =
+          appContext.reactContext?.cacheDir
+            ?: throw ArcgisCodedException(
+              ArcgisErrorCode.NATIVE_FAILURE,
+              "No cache directory available.",
+            )
+        val portal = Portal(DEFAULT_PORTAL_URL, Portal.Connection.Anonymous)
+        val portalItem = PortalItem(portal, options.webMapItemId)
+        val onlineMap = ArcGISMap(portalItem)
+        val offlineTask = OfflineMapTask(onlineMap)
+        val area = options.areaOfInterest
+        val envelope =
+          Envelope(
+            Point(area.minLongitude, area.minLatitude, SpatialReference.wgs84()),
+            Point(area.maxLongitude, area.maxLatitude, SpatialReference.wgs84()),
+          )
+        val parameters =
+          offlineTask.createDefaultGenerateOfflineMapParameters(envelope).getOrThrow()
+        options.minScale?.let { parameters.minScale = it }
+        options.maxScale?.let { parameters.maxScale = it }
+        // Use a pre-provisioned local basemap instead of downloading the web
+        // map's basemap; only operational layers are taken offline.
+        options.localBasemapPath?.let { path ->
+          val basemapFile = File(path)
+          parameters.referenceBasemapDirectory = basemapFile.parent ?: ""
+          parameters.referenceBasemapFilename = basemapFile.name
+        }
+
+        val id = "job-${jobCounter.incrementAndGet()}"
+        // The download directory must not already exist, and the job id can
+        // repeat across app launches, so make the path unique.
+        val directory = File(cacheDir, "offline-$id-${java.util.UUID.randomUUID()}").absolutePath
+        val job = offlineTask.createGenerateOfflineMapJob(parameters, directory)
+        launchJob(id, job) { offlineResultPayload(job.result().getOrThrow(), directory) }
+        id
+      }
+
+    AsyncFunction("startPreplannedMapAreaJob") Coroutine
+      { webMapItemId: String, areaIndex: Int ->
+        val cacheDir =
+          appContext.reactContext?.cacheDir
+            ?: throw ArcgisCodedException(
+              ArcgisErrorCode.NATIVE_FAILURE, "No cache directory available.")
+        val portal = Portal(DEFAULT_PORTAL_URL, Portal.Connection.Anonymous)
+        val offlineTask = OfflineMapTask(ArcGISMap(PortalItem(portal, webMapItemId)))
+        val areas = offlineTask.getPreplannedMapAreas().getOrThrow()
+        if (areaIndex < 0 || areaIndex >= areas.size) {
+          throw ArcgisCodedException(
+            ArcgisErrorCode.INVALID_ARGUMENT,
+            "No preplanned map area at index $areaIndex (found ${areas.size}).")
+        }
+        val area = areas[areaIndex]
+        area.load().getOrThrow()
+        val parameters =
+          offlineTask.createDefaultDownloadPreplannedOfflineMapParameters(area).getOrThrow()
+        val id = "job-${jobCounter.incrementAndGet()}"
+        val directory =
+          File(cacheDir, "preplanned-$id-${java.util.UUID.randomUUID()}").absolutePath
+        val job = offlineTask.createDownloadPreplannedOfflineMapJob(parameters, directory)
+        launchJob(id, job) {
+          job.result().getOrThrow()
+          mapOf("path" to directory, "layerErrors" to emptyList<String>())
+        }
+        id
+      }
+
+    AsyncFunction("startScheduledUpdatesJob") Coroutine
+      { mobileMapPackagePath: String ->
+        val mmpk = MobileMapPackage(mobileMapPackagePath)
+        mmpk.load().getOrThrow()
+        val map =
+          mmpk.maps.firstOrNull()
+            ?: throw ArcgisCodedException(
+              ArcgisErrorCode.INVALID_ARGUMENT, "The mobile map package contains no maps.")
+        val syncTask = OfflineMapSyncTask(map)
+        val parameters = syncTask.createDefaultOfflineMapSyncParameters().getOrThrow()
+        val id = "job-${jobCounter.incrementAndGet()}"
+        val job = syncTask.createOfflineMapSyncJob(parameters)
+        launchJob(id, job) {
+          val result = job.result().getOrThrow()
+          val layerErrors =
+            if (result.hasErrors) listOf("Some tables reported sync errors.") else emptyList()
+          mapOf("path" to mobileMapPackagePath, "layerErrors" to layerErrors)
+        }
+        id
+      }
+
+    AsyncFunction("startExportVectorTilesJob") Coroutine
+      { options: ExportVectorTilesRecord ->
+        val cacheDir =
+          appContext.reactContext?.cacheDir
+            ?: throw ArcgisCodedException(
+              ArcgisErrorCode.NATIVE_FAILURE,
+              "No cache directory available.",
+            )
+        val task = ExportVectorTilesTask(options.serviceUrl)
+        task.load().getOrThrow()
+        val area = options.area
+        val wgs84Envelope =
+          Envelope(
+            Point(area.minLongitude, area.minLatitude, SpatialReference.wgs84()),
+            Point(area.maxLongitude, area.maxLatitude, SpatialReference.wgs84()),
+          )
+        // The export service requires the area-of-interest to be in the service's
+        // spatial reference; vector tile services are Web Mercator, so project the
+        // WGS 84 area before requesting default parameters.
+        val envelope =
+          (GeometryEngine.projectOrNull(wgs84Envelope, SpatialReference.webMercator())
+            as? Envelope) ?: wgs84Envelope
+        val parameters =
+          task
+            .createDefaultExportVectorTilesParameters(envelope, options.maxScale ?: 0.0)
+            .getOrThrow()
+        val id = "job-${jobCounter.incrementAndGet()}"
+        val path = File(cacheDir, "vtiles-$id-${java.util.UUID.randomUUID()}.vtpk").absolutePath
+        val job = task.createExportVectorTilesJob(parameters, path)
+        launchJob(id, job) {
+          val result = job.result().getOrThrow()
+          mapOf("path" to (result.vectorTileCache?.path ?: path))
+        }
+        id
+      }
+
     AsyncFunction("startGeoprocessingJob") Coroutine
       { options: GeoprocessingJobRecord ->
         val task = GeoprocessingTask(options.serviceUrl)
@@ -1852,6 +1994,13 @@ class ExpoArcgisMapsSdkModule : Module() {
         }
         Unit
       }
+
+    AsyncFunction("deleteOfflineMap") { path: String ->
+      val file = File(path)
+      if (file.exists()) {
+        file.deleteRecursively()
+      }
+    }
 
     View(ExpoArcgisMapView::class) {
       Events(
