@@ -111,6 +111,13 @@ export {
   applyGeodatabaseTransaction,
   addFeatureWithContingentValues,
 } from './geodatabase';
+export {
+  startOfflineMapJob,
+  startPreplannedMapAreaJob,
+  startScheduledUpdatesJob,
+  startExportVectorTilesJob,
+  deleteOfflineMap,
+} from './offline';
 export { startGeoprocessingJob } from './geoprocessing';
 export {
   solveRoute,
