@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Static checks (yarn check)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Build config plugin
+        run: yarn build:plugin
+
+      # Runs the package script (typecheck x2, lint, prettier, jest).
+      # `yarn run check`, not `yarn check` — the latter is Yarn 1's builtin.
+      - name: Run checks
+        run: yarn run check
+
+# ---------------------------------------------------------------------------
+# Native builds are intentionally NOT run here. They require the ArcGIS Maps SDK
+# 300.0 (Android: Esri Maven; iOS: the ArcGIS Swift Package added manually), plus
+# an Android SDK 36 / Xcode 26 toolchain. Add these jobs once a runner with those
+# is available:
+#
+#   android-build:
+#     runs-on: ubuntu-latest
+#     steps: [checkout, setup-java(17), setup-node, yarn, build:plugin,
+#             cd example && expo prebuild -p android, ./gradlew assembleDebug]
+#
+#   ios-build:
+#     runs-on: macos-15   # Xcode 26
+#     steps: [checkout, setup-node, yarn, build:plugin,
+#             cd example && expo prebuild -p ios,
+#             add ArcGIS Swift Package (300.0.0), xcodebuild -scheme ... build]
+# ---------------------------------------------------------------------------

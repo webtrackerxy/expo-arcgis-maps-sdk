@@ -1,0 +1,16 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+    The augmented-reality views (ArcgisArView) require ARCore and the camera.
+    CAMERA is the runtime permission the AR camera feed needs; the camera.ar
+    feature is declared not-required and ARCore is declared "optional" so the
+    app still installs on devices without AR support — the runtime isArSupported
+    probe gates AR instead. These merge into the consumer app at build time; the
+    config plugin adds the same entries on prebuild for parity.
+  -->
+  <uses-permission android:name="android.permission.CAMERA" />
+  <uses-feature android:name="android.hardware.camera.ar" android:required="false" />
+
+  <application>
+    <meta-data android:name="com.google.ar.core" android:value="optional" />
+  </application>
+</manifest>

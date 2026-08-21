@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "expo-arcgis-maps-sdk-example",
+    "slug": "expo-arcgis-maps-sdk-example",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "plugins": [["../app.plugin.js", { "oauthRedirectUri": "expo-arcgis-example://auth" }]],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "expo.modules.arcgismapssdk.example",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Shows your location on the map for the device-location demo.",
+        "NSCameraUsageDescription": "Uses the camera to display the live camera feed behind the map in the augmented reality (AR) scene demos."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "expo.modules.arcgismapssdk.example",
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.HIGH_SAMPLING_RATE_SENSORS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
