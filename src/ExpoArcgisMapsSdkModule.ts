@@ -274,6 +274,17 @@ export declare class ExpoArcgisMapsSdkModule extends NativeModule<ExpoArcgisMaps
   /** Remove all stored ArcGIS credentials (sign out). */
   signOut(): Promise<void>;
   /**
+   * Create and start a generate-offline-map job. Resolves with an opaque job id
+   * once the job has started; progress arrives via `onJobProgress`.
+   */
+  startOfflineMapJob(options: OfflineMapJobOptions): Promise<string>;
+  /** Create and start a download-preplanned-offline-map-area job. */
+  startPreplannedMapAreaJob(webMapItemId: string, areaIndex: number): Promise<string>;
+  /** Create and start an apply-scheduled-updates job for an offline package. */
+  startScheduledUpdatesJob(mobileMapPackagePath: string): Promise<string>;
+  /** Create and start an export-vector-tiles job; resolves with an opaque job id. */
+  startExportVectorTilesJob(options: ExportVectorTilesOptions): Promise<string>;
+  /**
    * Create and start a geoprocessing job; resolves with an opaque job id. Inputs
    * are sent with a fixed field per type (`stringValue` / `doubleValue` /
    * `point`) since the native Record layer is strictly typed.
@@ -318,6 +329,8 @@ export declare class ExpoArcgisMapsSdkModule extends NativeModule<ExpoArcgisMaps
   awaitJob(jobId: string): Promise<unknown>;
   /** Request cancellation of a running job by id. */
   cancelJob(jobId: string): Promise<void>;
+  /** Delete a previously generated offline map package or geodatabase file. */
+  deleteOfflineMap(path: string): Promise<void>;
 }
 
 // This call resolves the native module at import time on device. In Jest it is
