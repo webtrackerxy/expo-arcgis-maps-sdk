@@ -1,0 +1,88 @@
+{
+  "name": "expo-arcgis-maps-sdk",
+  "version": "0.1.0",
+  "description": "Community-maintained ArcGIS Maps SDK bindings for Expo and React Native.",
+  "main": "build/index.js",
+  "types": "build/index.d.ts",
+  "scripts": {
+    "build": "node internal/module_scripts/build.js",
+    "clean": "node internal/module_scripts/clean.js",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p plugin/tsconfig.json",
+    "lint": "eslint . --max-warnings 0",
+    "prettier-check": "prettier --check .",
+    "prettier-write": "prettier --write .",
+    "test": "jest",
+    "build:plugin": "tsc -p plugin/tsconfig.json",
+    "check": "yarn typecheck && yarn lint && yarn prettier-check && yarn test",
+    "prepublishOnly": "yarn check",
+    "prepare": "node internal/module_scripts/prepare.js",
+    "open:ios": "node internal/module_scripts/open-ios.js",
+    "open:android": "node internal/module_scripts/open-android.js"
+  },
+  "keywords": [
+    "react-native",
+    "expo",
+    "expo-arcgis-maps-sdk",
+    "ExpoArcgisMapsSdk"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/webtrackerxy/expo-arcgis-maps-sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/webtrackerxy/expo-arcgis-maps-sdk/issues"
+  },
+  "author": "webtrackerxy <robotbuilder753@gmail.com> (https://github.com/webtrackerxy)",
+  "license": "MIT",
+  "homepage": "https://github.com/webtrackerxy/expo-arcgis-maps-sdk#readme",
+  "dependencies": {},
+  "devDependencies": {
+    "@babel/core": "^7.26.0",
+    "@types/jest": "^29.2.1",
+    "@types/react": "~19.1.1",
+    "babel-preset-expo": "~55.0.8",
+    "eslint": "~9.39.4",
+    "eslint-config-universe": "^15.0.3",
+    "expo": "^57.0.7",
+    "jest": "^29.7.0",
+    "jest-expo": "~55.0.9",
+    "prettier": "^3.0.0",
+    "react": "19.2.0",
+    "react-native": "0.82.1",
+    "typescript": "^5.9.2"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "roots": [
+      "<rootDir>/src",
+      "<rootDir>/plugin/src"
+    ],
+    "transform": {
+      "^.+\\.[jt]sx?$": [
+        "babel-jest",
+        {
+          "presets": [
+            [
+              "babel-preset-expo",
+              {
+                "web": false,
+                "native": {
+                  "unstable_transformProfile": "default"
+                }
+              }
+            ]
+          ]
+        }
+      ]
+    }
+  },
+  "peerDependencies": {
+    "expo": ">=57.0.0",
+    "react": ">=19.0.0",
+    "react-native": ">=0.82.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}
