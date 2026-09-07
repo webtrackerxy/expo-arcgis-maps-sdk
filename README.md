@@ -12,6 +12,19 @@ Community-maintained ArcGIS Maps SDK bindings for Expo and React Native.
 > This project is an independent community package. It is not affiliated with, maintained by,
 > endorsed by, or supported by Esri. ArcGIS is a trademark of Esri.
 
+## Try the example app
+
+The `example/` app is published to Google Play, so you can see the module running on a real
+device without building it yourself.
+
+<a href="https://play.google.com/store/apps/details?id=uk.co.sincetech.expo.arcgis.maps.sdk">
+  <img
+    src="https://raw.githubusercontent.com/webtrackerxy/expo-arcgis-maps-sdk/main/docs/assets/google-play-badge.png"
+    alt="Get it on Google Play"
+    height="48"
+  />
+</a>
+
 ## Project status
 
 Early development. The public API may change before `1.0.0`.
