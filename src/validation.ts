@@ -1894,6 +1894,66 @@ function validateEnvelope(
   return { minLatitude, minLongitude, maxLatitude, maxLongitude };
 }
 
+/** Validate offline-map job options and return a normalized copy. */
+export function validateOfflineMapJobOptions(options: OfflineMapJobOptions): OfflineMapJobOptions {
+  if (typeof options !== 'object' || options === null) {
+    invalid('startOfflineMapJob requires an options object.');
+  }
+  if (typeof options.webMapItemId !== 'string' || options.webMapItemId.trim().length === 0) {
+    invalid('startOfflineMapJob requires a non-empty "webMapItemId".');
+  }
+  const normalized: OfflineMapJobOptions = {
+    webMapItemId: options.webMapItemId,
+    areaOfInterest: validateEnvelope(options.areaOfInterest),
+  };
+  if (options.minScale !== undefined) {
+    normalized.minScale = validatePositive(options.minScale, 'minScale');
+  }
+  if (options.maxScale !== undefined) {
+    normalized.maxScale = validatePositive(options.maxScale, 'maxScale');
+  }
+  if (
+    normalized.minScale !== undefined &&
+    normalized.maxScale !== undefined &&
+    normalized.maxScale > normalized.minScale
+  ) {
+    invalid('maxScale (most zoomed-in) must be less than or equal to minScale.', {
+      minScale: normalized.minScale,
+      maxScale: normalized.maxScale,
+    });
+  }
+  if (options.localBasemapPath !== undefined) {
+    if (
+      typeof options.localBasemapPath !== 'string' ||
+      options.localBasemapPath.trim().length === 0
+    ) {
+      invalid('startOfflineMapJob localBasemapPath must be a non-empty string.');
+    }
+    normalized.localBasemapPath = options.localBasemapPath;
+  }
+  return normalized;
+}
+
+/** Validate `startExportVectorTilesJob` options. Returns a normalized copy. */
+export function validateExportVectorTilesOptions(
+  options: ExportVectorTilesOptions
+): ExportVectorTilesOptions {
+  if (typeof options !== 'object' || options === null) {
+    invalid('startExportVectorTilesJob requires an options object.');
+  }
+  if (typeof options.serviceUrl !== 'string' || options.serviceUrl.trim().length === 0) {
+    invalid('startExportVectorTilesJob requires a non-empty "serviceUrl".');
+  }
+  const normalized: ExportVectorTilesOptions = {
+    serviceUrl: options.serviceUrl,
+    area: validateEnvelope(options.area, 'area'),
+  };
+  if (options.maxScale !== undefined) {
+    normalized.maxScale = validatePositive(options.maxScale, 'maxScale');
+  }
+  return normalized;
+}
+
 function validateFeatureServiceUrl(url: unknown, fn: string): string {
   if (typeof url !== 'string' || !/^https?:\/\//i.test(url)) {
     invalid(`${fn} requires a "featureServiceUrl" that is an http(s) URL.`);

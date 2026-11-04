@@ -592,6 +592,15 @@ struct EnvelopeRecord: Record {
   @Field var maxLongitude: Double = 0
 }
 
+/// Options for a `startOfflineMapJob` call.
+struct OfflineMapJobRecord: Record {
+  @Field var webMapItemId: String = ""
+  @Field var areaOfInterest: EnvelopeRecord = EnvelopeRecord()
+  @Field var minScale: Double?
+  @Field var maxScale: Double?
+  @Field var localBasemapPath: String?
+}
+
 /// Options for an `addFeatureWithContingentValues` call.
 struct ContingentFeatureRecord: Record {
   @Field var geodatabasePath: String = ""
@@ -639,6 +648,13 @@ struct CreateAndSaveMapRecord: Record {
   @Field var basemap: String = ""
   @Field var description: String = ""
   @Field var tags: [String] = []
+}
+
+/// Options for a `startExportVectorTilesJob` call.
+struct ExportVectorTilesRecord: Record {
+  @Field var serviceUrl: String = ""
+  @Field var area: EnvelopeRecord = EnvelopeRecord()
+  @Field var maxScale: Double?
 }
 
 /// Options for a `startGenerateGeodatabaseJob` call.

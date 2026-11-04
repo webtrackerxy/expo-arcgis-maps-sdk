@@ -208,6 +208,16 @@ export type {
 } from './geodatabase';
 
 export type {
+  GeographicEnvelope,
+  OfflineMapJobOptions,
+  OfflineMapResult,
+  OfflineMapJob,
+  ExportVectorTilesOptions,
+  ExportVectorTilesResult,
+  ExportVectorTilesJob,
+} from './offline';
+
+export type {
   RouteResult,
   SolveRouteOptions,
   ClosestFacilityOptions,

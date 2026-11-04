@@ -217,6 +217,31 @@ protocol AnyArcgisJob {
   func awaitPayload(directory: URL) async throws -> [String: Any]
 }
 
+extension GenerateOfflineMapJob: AnyArcgisJob {
+  func awaitPayload(directory: URL) async throws -> [String: Any] {
+    let output = try await self.output
+    var layerErrors: [String] = []
+    for (_, error) in output.layerErrors {
+      layerErrors.append(error.localizedDescription)
+    }
+    for (_, error) in output.tableErrors {
+      layerErrors.append(error.localizedDescription)
+    }
+    return ["path": directory.path, "layerErrors": layerErrors]
+  }
+}
+
+extension DownloadPreplannedOfflineMapJob: AnyArcgisJob {
+  func awaitPayload(directory: URL) async throws -> [String: Any] {
+    let output = try await self.output
+    var layerErrors: [String] = []
+    for (_, error) in output.layerErrors {
+      layerErrors.append(error.localizedDescription)
+    }
+    return ["path": directory.path, "layerErrors": layerErrors]
+  }
+}
+
 extension GenerateGeodatabaseJob: AnyArcgisJob {
   func awaitPayload(directory: URL) async throws -> [String: Any] {
     let geodatabase = try await self.output
@@ -224,10 +249,26 @@ extension GenerateGeodatabaseJob: AnyArcgisJob {
   }
 }
 
+extension OfflineMapSyncJob: AnyArcgisJob {
+  func awaitPayload(directory: URL) async throws -> [String: Any] {
+    let result = try await self.output
+    // `directory` carries the mobile map package path so the result echoes it.
+    let layerErrors = result.hasErrors ? ["Some tables reported sync errors."] : [String]()
+    return ["path": directory.path, "layerErrors": layerErrors]
+  }
+}
+
 extension SyncGeodatabaseJob: AnyArcgisJob {
   func awaitPayload(directory: URL) async throws -> [String: Any] {
     _ = try await self.output
     return ["layerErrors": [String]()]
+  }
+}
+
+extension ExportVectorTilesJob: AnyArcgisJob {
+  func awaitPayload(directory: URL) async throws -> [String: Any] {
+    _ = try await self.output
+    return ["path": directory.path]
   }
 }
 
@@ -1623,6 +1664,124 @@ public class ExpoArcgisMapsSdkModule: Module {
       await ArcGISEnvironment.authenticationManager.arcGISCredentialStore.removeAll()
     }
 
+    AsyncFunction("startOfflineMapJob") { (options: OfflineMapJobRecord) -> String in
+      guard let itemID = PortalItem.ID(options.webMapItemId) else {
+        throw ArcgisException((
+          code: ArcgisErrorCode.invalidArgument,
+          message: "Invalid webMapItemId."
+        ))
+      }
+      let portalItem = PortalItem(portal: .arcGISOnline(connection: .anonymous), id: itemID)
+      let onlineMap = Map(item: portalItem)
+      let offlineTask = OfflineMapTask(onlineMap: onlineMap)
+      let area = options.areaOfInterest
+      let envelope = Envelope(
+        xMin: area.minLongitude,
+        yMin: area.minLatitude,
+        xMax: area.maxLongitude,
+        yMax: area.maxLatitude,
+        spatialReference: .wgs84
+      )
+      let parameters = try await offlineTask.makeDefaultGenerateOfflineMapParameters(
+        areaOfInterest: envelope
+      )
+      if let minScale = options.minScale {
+        parameters.minScale = minScale
+      }
+      if let maxScale = options.maxScale {
+        parameters.maxScale = maxScale
+      }
+      // Use a pre-provisioned local basemap instead of downloading the web map's
+      // basemap; only operational layers are taken offline.
+      if let localBasemapPath = options.localBasemapPath {
+        let basemapURL = URL(fileURLWithPath: localBasemapPath)
+        parameters.referenceBasemapDirectoryURL = basemapURL.deletingLastPathComponent()
+        parameters.referenceBasemapFilename = basemapURL.lastPathComponent
+      }
+
+      let id = self.nextJobId()
+      // A GenerateOfflineMapJob requires a non-existent download directory, and
+      // the job id can repeat across app launches, so make the path unique.
+      let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("offline-\(id)-\(UUID().uuidString)", isDirectory: true)
+      let job = offlineTask.makeGenerateOfflineMapJob(
+        parameters: parameters,
+        downloadDirectory: directory
+      )
+      self.launchJob(id, job, directory: directory)
+      return id
+    }
+
+    AsyncFunction("startPreplannedMapAreaJob") { (webMapItemId: String, areaIndex: Int) -> String in
+      guard let itemID = PortalItem.ID(webMapItemId) else {
+        throw ArcgisException((
+          code: ArcgisErrorCode.invalidArgument, message: "Invalid webMapItemId."))
+      }
+      let portalItem = PortalItem(portal: .arcGISOnline(connection: .anonymous), id: itemID)
+      let offlineTask = OfflineMapTask(onlineMap: Map(item: portalItem))
+      try await offlineTask.load()
+      let areas = try await offlineTask.preplannedMapAreas
+      guard areaIndex >= 0, areaIndex < areas.count else {
+        throw ArcgisException((
+          code: ArcgisErrorCode.invalidArgument,
+          message: "No preplanned map area at index \(areaIndex) (found \(areas.count))."))
+      }
+      let area = areas[areaIndex]
+      try await area.load()
+      let parameters = try await offlineTask.makeDefaultDownloadPreplannedOfflineMapParameters(
+        preplannedMapArea: area)
+      let id = self.nextJobId()
+      let directory = FileManager.default.temporaryDirectory
+        .appendingPathComponent("preplanned-\(id)-\(UUID().uuidString)", isDirectory: true)
+      let job = offlineTask.makeDownloadPreplannedOfflineMapJob(
+        parameters: parameters, downloadDirectory: directory)
+      self.launchJob(id, job, directory: directory)
+      return id
+    }
+
+    AsyncFunction("startScheduledUpdatesJob") { (mobileMapPackagePath: String) -> String in
+      let packageURL = URL(fileURLWithPath: mobileMapPackagePath)
+      let package = MobileMapPackage(fileURL: packageURL)
+      try await package.load()
+      guard let map = package.maps.first else {
+        throw ArcgisException((
+          code: ArcgisErrorCode.invalidArgument,
+          message: "The mobile map package contains no maps."))
+      }
+      let syncTask = OfflineMapSyncTask(map: map)
+      let parameters = try await syncTask.makeDefaultOfflineMapSyncParameters()
+      let id = self.nextJobId()
+      let job = syncTask.makeSyncOfflineMapJob(parameters: parameters)
+      self.launchJob(id, job, directory: packageURL)
+      return id
+    }
+
+    AsyncFunction("startExportVectorTilesJob") { (options: ExportVectorTilesRecord) -> String in
+      guard let url = URL(string: options.serviceUrl) else {
+        throw ArcgisException((
+          code: ArcgisErrorCode.invalidArgument, message: "Invalid serviceUrl."))
+      }
+      let task = ExportVectorTilesTask(url: url)
+      try await task.load()
+      let area = options.area
+      let wgs84Envelope = Envelope(
+        xMin: area.minLongitude, yMin: area.minLatitude,
+        xMax: area.maxLongitude, yMax: area.maxLatitude, spatialReference: .wgs84)
+      // The export service requires the area-of-interest to be in the service's
+      // spatial reference; vector tile services are Web Mercator, so project the
+      // WGS 84 area before requesting default parameters.
+      let envelope =
+        GeometryEngine.project(wgs84Envelope, into: .webMercator) as? Envelope ?? wgs84Envelope
+      let parameters = try await task.makeDefaultExportVectorTilesParameters(
+        areaOfInterest: envelope, maxScale: options.maxScale ?? 0)
+      let id = self.nextJobId()
+      let fileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("vtiles-\(id)-\(UUID().uuidString).vtpk")
+      let job = task.makeExportVectorTilesJob(parameters: parameters, downloadFileURL: fileURL)
+      self.launchJob(id, job, directory: fileURL)
+      return id
+    }
+
     AsyncFunction("startGeoprocessingJob") { (options: GeoprocessingJobRecord) -> String in
       guard let url = URL(string: options.serviceUrl) else {
         throw ArcgisException((
@@ -1718,6 +1877,12 @@ public class ExpoArcgisMapsSdkModule: Module {
       if let entry = self.jobEntry(jobId) {
         self.markCancelled(jobId)
         await entry.job.cancel()
+      }
+    }
+
+    AsyncFunction("deleteOfflineMap") { (path: String) in
+      if FileManager.default.fileExists(atPath: path) {
+        try FileManager.default.removeItem(atPath: path)
       }
     }
 

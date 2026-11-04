@@ -136,6 +136,28 @@ class CreateAndSaveMapRecord : Record {
   @Field var tags: List<String> = emptyList()
 }
 
+/** Options for a `startOfflineMapJob` call. */
+class OfflineMapJobRecord : Record {
+  @Field var webMapItemId: String = ""
+
+  @Field var areaOfInterest: EnvelopeRecord = EnvelopeRecord()
+
+  @Field var minScale: Double? = null
+
+  @Field var maxScale: Double? = null
+
+  @Field var localBasemapPath: String? = null
+}
+
+/** Options for a `startExportVectorTilesJob` call. */
+class ExportVectorTilesRecord : Record {
+  @Field var serviceUrl: String = ""
+
+  @Field var area: EnvelopeRecord = EnvelopeRecord()
+
+  @Field var maxScale: Double? = null
+}
+
 /** Options for a `startGenerateGeodatabaseJob` call. */
 class GenerateGeodatabaseRecord : Record {
   @Field var featureServiceUrl: String = ""
